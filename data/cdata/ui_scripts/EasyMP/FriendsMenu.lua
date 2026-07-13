@@ -55,6 +55,20 @@ local buildRows = function()
         }
     end
 
+    local requests = friendslist.getrequests()
+    for i = 1, requests.count do
+        local req = requests[i]
+        rows[#rows + 1] = {
+            label = "^5+ DEMANDE D'AMI DE " .. ToUpperCase(req.name) .. " (cliquez pour accepter)",
+            infoTitle = "Demande d'ami",
+            infoDesc = req.name .. " veut vous ajouter. Cliquez pour accepter - vous serez amis des deux cotes.",
+            onClick = function(element, eventArgs)
+                Engine.Exec("friend_accept " .. req.name)
+            end,
+            forceRefresh = true
+        }
+    end
+
     rows[#rows + 1] = {
         label = "^3>> CREER UNE PARTIE ENTRE AMIS",
         infoTitle = Engine.IsAliensMode() and "Creer une partie zombies" or "Creer une partie",
