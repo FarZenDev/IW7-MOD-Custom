@@ -36,6 +36,8 @@ local onRowHover = function(menuElement, controllerIndex, rowData)
     local scopedData = LUI.FlowManager.GetScopedData(menuElement)
     scopedData.currentLabel = rowData.infoTitle or ""
     scopedData.currentDesc = rowData.infoDesc or ""
+    -- remember which friend is highlighted, for the Supprimer / Renommer actions
+    menuElement.selectedFriend = rowData.friendName
     updateInfoPanel(menuElement)
 end
 
@@ -186,9 +188,10 @@ local buildRows = function()
             rows[#rows + 1] = {
                 label = "^2[EN PARTIE] " .. friendEntry.name,
                 infoTitle = friendEntry.name,
+                friendName = friendEntry.name,
                 infoDesc = (friendEntry.gametype ~= "" and friendEntry.gametype or "?") .. " sur " ..
                     (friendEntry.mapname ~= "" and friendEntry.mapname or "?") .. " (" .. friendEntry.clients .. "/" ..
-                    friendEntry.maxclients .. ") - cliquez pour rejoindre !",
+                    friendEntry.maxclients .. ") - cliquez pour rejoindre !  ^7[Y] renommer  [X] supprimer",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -197,7 +200,8 @@ local buildRows = function()
             rows[#rows + 1] = {
                 label = "^3[EN LIGNE] " .. friendEntry.name,
                 infoTitle = friendEntry.name,
-                infoDesc = "Dans les menus. Creez une partie pour l'inviter automatiquement.",
+                friendName = friendEntry.name,
+                infoDesc = "Dans les menus. Creez une partie pour l'inviter.  ^7[Y] renommer  [X] supprimer",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -206,7 +210,8 @@ local buildRows = function()
             rows[#rows + 1] = {
                 label = "^1[HORS LIGNE] " .. friendEntry.name,
                 infoTitle = friendEntry.name,
-                infoDesc = "Injoignable pour le moment. Il doit lancer IW7-Mod pour apparaitre en ligne."
+                friendName = friendEntry.name,
+                infoDesc = "Injoignable pour le moment.  ^7[Y] renommer  [X] supprimer"
             }
         end
     end
@@ -285,6 +290,43 @@ end
 local function postLoadFunction(menuElement, controllerIndex, controller)
     assert(menuElement.bindButton)
     menuElement.bindButton:addEventHandler("button_secondary", leaveMenu)
+
+    -- [X] supprimer l'ami survole (avec confirmation)
+    menuElement.bindButton:addEventHandler("button_alt1", function(element, eventArgs)
+        local name = menuElement.selectedFriend
+        if not name then
+            return
+        end
+        EasyMPConfirmData = {
+            message = "Supprimer " .. name .. " de tes amis ?",
+            title = "SUPPRIMER UN AMI",
+            action = function()
+                friendslist.remove(name)
+                menuElement.easyMPSignature = ""
+            end,
+        }
+        pcall(function()
+            LUI.FlowManager.RequestPopupMenu(nil, "EasyMPConfirmPopup", true, eventArgs.controller, false)
+        end)
+    end)
+
+    -- [Y] renommer l'ami survole (clavier a l'ecran)
+    menuElement.bindButton:addEventHandler("button_alt2", function(element, eventArgs)
+        local name = menuElement.selectedFriend
+        if not name then
+            return
+        end
+        local ctrl = eventArgs.controller or controllerIndex
+        pcall(function()
+            OSK.OpenScreenKeyboard(ctrl, Engine.Localize("Nouveau nom pour " .. name), name, 22, true, false, false,
+                function(kbController, newName)
+                    if newName and newName ~= "" then
+                        friendslist.rename(name, newName)
+                        menuElement.easyMPSignature = ""
+                    end
+                end)
+        end)
+    end)
 
     friendslist.refresh()
     populateList(menuElement, controllerIndex)
@@ -511,6 +553,18 @@ function EasyMPFriendsMenu(arg0, controller)
             helper_text = Engine.Localize("MENU_BACK"),
             button_ref = "button_secondary",
             side = "left",
+            clickable = true
+        })
+        arg0:AddButtonHelperText({
+            helper_text = "Renommer",
+            button_ref = "button_alt2",
+            side = "right",
+            clickable = true
+        })
+        arg0:AddButtonHelperText({
+            helper_text = "Supprimer",
+            button_ref = "button_alt1",
+            side = "right",
             clickable = true
         })
     end
