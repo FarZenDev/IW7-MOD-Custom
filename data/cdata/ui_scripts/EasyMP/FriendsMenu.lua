@@ -39,6 +39,62 @@ local onRowHover = function(menuElement, controllerIndex, rowData)
     updateInfoPanel(menuElement)
 end
 
+-- confirmation popup (Rejoindre X ?) reused from the game's generic yes/no popup
+EasyMPConfirmData = nil
+
+function EasyMPConfirmPopup(menu, controller)
+    local self = LUI.UIElement.new()
+    self.id = "EasyMPConfirmPopup"
+    self:registerAnimationState("default", {
+        topAnchor = true,
+        leftAnchor = true,
+        bottomAnchor = true,
+        rightAnchor = true,
+        top = -50,
+        left = 0,
+        bottom = 0,
+        right = 0,
+        alpha = 1,
+    })
+    self:animateToState("default", 0)
+    local data = EasyMPConfirmData or {}
+    MenuBuilder.BuildAddChild(self, {
+        type = "generic_yesno_popup",
+        id = "easymp_confirm_popup_id",
+        properties = {
+            message_text_alignment = LUI.Alignment.Center,
+            message_text = data.message or "",
+            popup_title = data.title or "",
+            padding_top = 12,
+            yes_action = function()
+                if EasyMPConfirmData and EasyMPConfirmData.action then
+                    EasyMPConfirmData.action()
+                end
+            end,
+        },
+    })
+    return self
+end
+MenuBuilder.registerType("EasyMPConfirmPopup", EasyMPConfirmPopup)
+
+-- ask "Rejoindre X ?" before actually connecting
+local function confirmJoin(controller, friendName, joinCommand)
+    EasyMPConfirmData = {
+        message = "Rejoindre " .. friendName .. " ?",
+        title = "JOUER ENTRE AMIS",
+        action = function()
+            Engine.Exec(joinCommand)
+        end,
+    }
+    -- if the popup can't be shown for any reason, fall back to joining directly
+    local ok = pcall(function()
+        LUI.FlowManager.RequestPopupMenu(nil, "EasyMPConfirmPopup", true, controller, false)
+    end)
+    if not ok then
+        Engine.Exec(joinCommand)
+    end
+end
+
 local buildRows = function()
     local rows = {}
 
@@ -50,7 +106,7 @@ local buildRows = function()
             infoDesc = "Partie " .. (invite.gametype ~= "" and invite.gametype or "?") .. " sur " ..
                 (invite.mapname ~= "" and invite.mapname or "?") .. " - cliquez pour rejoindre !",
             onClick = function(element, eventArgs)
-                Engine.Exec("accept_invite")
+                confirmJoin(eventArgs.controller, invite.from, "accept_invite")
             end
         }
     end
@@ -69,13 +125,13 @@ local buildRows = function()
         }
     end
 
+    -- ===== ACTIONS =====
     rows[#rows + 1] = {
         label = "^3>> CREER UNE PARTIE ENTRE AMIS",
         infoTitle = Engine.IsAliensMode() and "Creer une partie zombies" or "Creer une partie",
         infoDesc = "Ouvre le salon de partie. Au lancement: port ouvert (UPnP) et amis invites automatiquement.",
         onClick = function(element, eventArgs)
             if Engine.IsAliensMode() then
-                -- same flow as the native zombies CUSTOM GAME button
                 Engine.Exec(MPConfig.default_xboxlive, eventArgs.controller)
                 Engine.SetDvarBool("xblive_privatematch", true)
                 SetIsAliensSolo(false)
@@ -90,18 +146,37 @@ local buildRows = function()
         end
     }
 
+    if friendslist.getmycode() ~= "" then
+        rows[#rows + 1] = {
+            label = "^7[ ] Copier mon code ami (a partager sur Discord)",
+            infoTitle = "Mon code ami",
+            infoDesc = "Copie ton code dans le presse-papiers. Colle-le a un pote (Discord...) pour qu'il t'ajoute.",
+            onClick = function(element, eventArgs)
+                Engine.Exec("invite_code")
+            end
+        }
+    end
+
+    -- ===== FRIENDS =====
+    local friends = friendslist.getall()
+    local onlineCount = 0
+    for i = 1, friends.count do
+        if friends[i].online then
+            onlineCount = onlineCount + 1
+        end
+    end
+
     rows[#rows + 1] = {
-        label = "^7--------- MES AMIS ---------",
+        label = "^7------ MES AMIS (" .. onlineCount .. "/" .. friends.count .. " en ligne) ------",
         infoTitle = "Mes amis",
         infoDesc = "^2Vert^7 = en partie (cliquez pour rejoindre). ^3Jaune^7 = en ligne. ^1Rouge^7 = hors ligne."
     }
 
-    local friends = friendslist.getall()
     if friends.count == 0 then
         rows[#rows + 1] = {
-            label = "(aucun ami - ajoutez-en via les joueurs recents ou la console)",
+            label = "(aucun ami pour l'instant)",
             infoTitle = "Aucun ami",
-            infoDesc = "Console: friend_add <nom> <code ou ip:port>. Votre code est en bas de l'ecran."
+            infoDesc = "Joue une partie avec quelqu'un et il sera ajoute automatiquement. Ou partage ton code."
         }
     end
 
@@ -115,7 +190,7 @@ local buildRows = function()
                     (friendEntry.mapname ~= "" and friendEntry.mapname or "?") .. " (" .. friendEntry.clients .. "/" ..
                     friendEntry.maxclients .. ") - cliquez pour rejoindre !",
                 onClick = function(element, eventArgs)
-                    Engine.Exec("join " .. friendEntry.name)
+                    confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
             }
         elseif friendEntry.online then
@@ -124,7 +199,7 @@ local buildRows = function()
                 infoTitle = friendEntry.name,
                 infoDesc = "Dans les menus. Creez une partie pour l'inviter automatiquement.",
                 onClick = function(element, eventArgs)
-                    Engine.Exec("join " .. friendEntry.name)
+                    confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
             }
         else
@@ -136,10 +211,11 @@ local buildRows = function()
         end
     end
 
+    -- ===== RECENT PLAYERS =====
     local recent = friendslist.getrecent()
     if recent.count > 0 then
         rows[#rows + 1] = {
-            label = "^7---- JOUEURS RECENTS ----",
+            label = "^7------ JOUEURS RECENTS ------",
             infoTitle = "Joueurs recents",
             infoDesc = "Les joueurs croises en partie. Cliquez sur un nom pour l'ajouter en ami."
         }
