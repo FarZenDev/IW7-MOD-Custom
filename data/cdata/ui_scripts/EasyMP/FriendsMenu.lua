@@ -276,7 +276,7 @@ end
 local updateMyCode = function(menuElement)
     local myCode = friendslist.getmycode()
     if myCode ~= "" then
-        menuElement.MyCodeText:setText("^3Mon code ami^7: " .. myCode .. "   (console: friend_add <nom> <code>)")
+        menuElement.MyCodeText:setText("^3Mon code ami^7: " .. myCode .. "   (clique \"Copier mon code\" pour le partager)")
     else
         menuElement.MyCodeText:setText("^1Detection de l'IP publique en cours...")
     end
