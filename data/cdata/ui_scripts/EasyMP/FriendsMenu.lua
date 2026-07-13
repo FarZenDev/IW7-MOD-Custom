@@ -203,22 +203,36 @@ local function postLoadFunction(menuElement, controllerIndex, controller)
     -- refresh friend statuses while the menu is open;
     -- only rebuild the list when something actually changed to keep focus stable
     menuElement.easyMPAlive = true
-    menuElement:addEventHandler("menu_close", function(closedElement, eventArgs)
+    local stopPolling = function()
         menuElement.easyMPAlive = false
-    end)
+    end
+    menuElement:addEventHandler("menu_close", stopPolling)
+    menuElement:addEventHandler("menu_lose_focus", stopPolling)
 
     local pollFunction
     pollFunction = function()
-        if not menuElement.easyMPAlive then
+        -- Stop the moment we leave this menu. Joining a game tears down the whole
+        -- frontend without always firing menu_close, so also bail out if we are no
+        -- longer in the frontend: touching destroyed UI elements crashes the LUI VM.
+        if not menuElement.easyMPAlive or not Engine.InFrontend() then
+            menuElement.easyMPAlive = false
             return
         end
 
-        friendslist.refresh()
-        updateMyCode(menuElement)
+        -- guard every UI access; if the element was freed under us, stop quietly
+        local ok = pcall(function()
+            friendslist.refresh()
+            updateMyCode(menuElement)
 
-        local rows = buildRows()
-        if rowsSignature(rows) ~= menuElement.easyMPSignature then
-            populateList(menuElement, controllerIndex)
+            local rows = buildRows()
+            if rowsSignature(rows) ~= menuElement.easyMPSignature then
+                populateList(menuElement, controllerIndex)
+            end
+        end)
+
+        if not ok or not menuElement.easyMPAlive then
+            menuElement.easyMPAlive = false
+            return
         end
 
         scheduler.once(pollFunction, 3000)
