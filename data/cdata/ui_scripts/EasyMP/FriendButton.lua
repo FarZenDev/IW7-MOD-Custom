@@ -98,7 +98,8 @@ function EasyMPFriendButton(menu, controller)
         StatusDot.id = "StatusDot"
         StatusDot:setImage(RegisterMaterial("white"), 0)
         StatusDot:SetAlpha(0, 0)
-        StatusDot:SetAnchorsAndPosition(0, 0, 0.5, 0.5, _1080p * 16, _1080p * 32, _1080p * -8, _1080p * 8)
+        -- thin full-height colored stripe on the far left of the row (6px wide)
+        StatusDot:SetAnchorsAndPosition(0, 0, 0, 1, _1080p * 4, _1080p * -486, _1080p * 4, _1080p * -4)
         EasyMPFriendButton:addElement(StatusDot)
         EasyMPFriendButton.StatusDot = StatusDot
     end)
