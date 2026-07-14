@@ -190,11 +190,13 @@ local buildRows = function()
         if friendEntry.online and friendEntry.ingame then
             rows[#rows + 1] = {
                 label = "^2[EN PARTIE] " .. friendEntry.name,
-                infoTitle = friendEntry.name,
+                infoTitle = "^2" .. friendEntry.name,
                 friendName = friendEntry.name,
-                infoDesc = (friendEntry.gametype ~= "" and friendEntry.gametype or "?") .. " sur " ..
-                    (friendEntry.mapname ~= "" and friendEntry.mapname or "?") .. " (" .. friendEntry.clients .. "/" ..
-                    friendEntry.maxclients .. ") - cliquez pour rejoindre !  ^7(voir Supprimer / Renommer en bas)",
+                infoDesc = "^2EN PARTIE^7\n\n" ..
+                    "Mode      " .. (friendEntry.gametype ~= "" and friendEntry.gametype or "?") .. "\n" ..
+                    "Map       " .. (friendEntry.mapname ~= "" and friendEntry.mapname or "?") .. "\n" ..
+                    "Joueurs   " .. friendEntry.clients .. " / " .. friendEntry.maxclients .. "\n\n" ..
+                    "^3> Cliquez pour rejoindre^7\nSupprimer / Renommer : en bas",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -202,9 +204,9 @@ local buildRows = function()
         elseif friendEntry.online then
             rows[#rows + 1] = {
                 label = "^3[EN LIGNE] " .. friendEntry.name,
-                infoTitle = friendEntry.name,
+                infoTitle = "^3" .. friendEntry.name,
                 friendName = friendEntry.name,
-                infoDesc = "Dans les menus. Creez une partie pour l'inviter.  ^7(voir Supprimer / Renommer en bas)",
+                infoDesc = "^3EN LIGNE^7\n\nDans les menus.\nCree une partie pour l'inviter.\n\nSupprimer / Renommer : en bas",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -212,9 +214,9 @@ local buildRows = function()
         else
             rows[#rows + 1] = {
                 label = "^1[HORS LIGNE] " .. friendEntry.name,
-                infoTitle = friendEntry.name,
+                infoTitle = "^1" .. friendEntry.name,
                 friendName = friendEntry.name,
-                infoDesc = "Injoignable pour le moment.  ^7(voir Supprimer / Renommer en bas)"
+                infoDesc = "^1HORS LIGNE^7\n\nInjoignable pour le moment.\nIl doit lancer IW7-Mod.\n\nSupprimer / Renommer : en bas"
             }
         end
     end
@@ -495,9 +497,14 @@ function EasyMPFriendsMenu(arg0, controller)
     infoText:SetFontSize(20 * _1080p)
     infoText:SetFont(FONTS.GetFont(FONTS.MainCondensed.File))
     infoText:SetAlignment(LUI.Alignment.Left)
-    infoText:SetAnchorsAndPosition(0, 1, 0, 1, _1080p * 1254, _1080p * 1824, _1080p * 248, _1080p * 328)
+    infoText:SetAnchorsAndPosition(0, 1, 0, 1, _1080p * 1254, _1080p * 1824, _1080p * 262, _1080p * 520)
     menuElement:addElement(infoText)
     menuElement.InfoText = infoText
+
+    -- gold divider line under the name, inside the detail panel
+    pcall(function()
+        easyMPPanel(0xE6B23A, 0.55, 1254, 1852, 254, 256)
+    end)
 
     local friendsList = nil
 
