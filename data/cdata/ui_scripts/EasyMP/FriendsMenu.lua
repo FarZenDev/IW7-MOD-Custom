@@ -412,6 +412,29 @@ function EasyMPFriendsMenu(arg0, controller)
 
     menuElement:playSound("menu_open")
 
+    -- ===== styled background panels (added first = rendered behind) =====
+    -- uses the tintable "white" material to draw flat colored panels/bars
+    local function easyMPPanel(colorInt, alpha, l, r, t, b)
+        local img = LUI.UIImage.new()
+        img:setImage(RegisterMaterial("white"), 0)
+        img:SetRGBFromInt(colorInt, 0)
+        img:SetAlpha(alpha, 0)
+        img:SetAnchorsAndPosition(0, 1, 0, 1, _1080p * l, _1080p * r, _1080p * t, _1080p * b)
+        menuElement:addElement(img)
+        return img
+    end
+
+    pcall(function()
+        -- panel behind the friends list
+        easyMPPanel(0x0b0d0c, 0.66, 116, 648, 198, 904)
+        easyMPPanel(0xe23b2f, 0.9, 116, 648, 198, 201)     -- red top accent
+        easyMPPanel(0xe6b23a, 0.7, 116, 119, 198, 904)     -- gold left accent
+        -- panel behind the detail info (right side)
+        easyMPPanel(0x090b0a, 0.62, 1238, 1868, 198, 760)
+        easyMPPanel(0xe23b2f, 0.9, 1238, 1868, 198, 201)   -- red top accent
+        easyMPPanel(0xe6b23a, 0.7, 1238, 1241, 198, 760)   -- gold left accent
+    end)
+
     local buttonHelperBar = nil
 
     buttonHelperBar = MenuBuilder.BuildRegisteredType("ButtonHelperBar", {
