@@ -496,7 +496,9 @@ function EasyMPFriendsMenu(arg0, controller)
     infoText:SetFontSize(20 * _1080p)
     infoText:SetFont(FONTS.GetFont(FONTS.MainCondensed.File))
     infoText:SetAlignment(LUI.Alignment.Left)
-    infoText:SetAnchorsAndPosition(0, 1, 0, 1, _1080p * 1254, _1080p * 1824, _1080p * 264, _1080p * 400)
+    -- cap the visible lines so the styled text does NOT auto-enlarge to fill the box
+    pcall(function() infoText:SetMaxVisibleLines(9) end)
+    infoText:SetAnchorsAndPosition(0, 1, 0, 1, _1080p * 1254, _1080p * 1824, _1080p * 264, _1080p * 470)
     menuElement:addElement(infoText)
     menuElement.InfoText = infoText
 
