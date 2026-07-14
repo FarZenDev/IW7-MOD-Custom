@@ -32,12 +32,15 @@ local updateInfoPanel = function(menuElement)
     end
 end
 
+-- which friend is currently highlighted (module global so the Supprimer /
+-- Renommer bind-button handlers can read it regardless of element passed)
+EasyMPSelectedFriend = nil
+
 local onRowHover = function(menuElement, controllerIndex, rowData)
     local scopedData = LUI.FlowManager.GetScopedData(menuElement)
     scopedData.currentLabel = rowData.infoTitle or ""
     scopedData.currentDesc = rowData.infoDesc or ""
-    -- remember which friend is highlighted, for the Supprimer / Renommer actions
-    menuElement.selectedFriend = rowData.friendName
+    EasyMPSelectedFriend = rowData.friendName
     updateInfoPanel(menuElement)
 end
 
@@ -191,7 +194,7 @@ local buildRows = function()
                 friendName = friendEntry.name,
                 infoDesc = (friendEntry.gametype ~= "" and friendEntry.gametype or "?") .. " sur " ..
                     (friendEntry.mapname ~= "" and friendEntry.mapname or "?") .. " (" .. friendEntry.clients .. "/" ..
-                    friendEntry.maxclients .. ") - cliquez pour rejoindre !  ^7[Y] renommer  [X] supprimer",
+                    friendEntry.maxclients .. ") - cliquez pour rejoindre !  ^7(voir Supprimer / Renommer en bas)",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -201,7 +204,7 @@ local buildRows = function()
                 label = "^3[EN LIGNE] " .. friendEntry.name,
                 infoTitle = friendEntry.name,
                 friendName = friendEntry.name,
-                infoDesc = "Dans les menus. Creez une partie pour l'inviter.  ^7[Y] renommer  [X] supprimer",
+                infoDesc = "Dans les menus. Creez une partie pour l'inviter.  ^7(voir Supprimer / Renommer en bas)",
                 onClick = function(element, eventArgs)
                     confirmJoin(eventArgs.controller, friendEntry.name, "join " .. friendEntry.name)
                 end
@@ -211,7 +214,7 @@ local buildRows = function()
                 label = "^1[HORS LIGNE] " .. friendEntry.name,
                 infoTitle = friendEntry.name,
                 friendName = friendEntry.name,
-                infoDesc = "Injoignable pour le moment.  ^7[Y] renommer  [X] supprimer"
+                infoDesc = "Injoignable pour le moment.  ^7(voir Supprimer / Renommer en bas)"
             }
         end
     end
@@ -291,9 +294,9 @@ local function postLoadFunction(menuElement, controllerIndex, controller)
     assert(menuElement.bindButton)
     menuElement.bindButton:addEventHandler("button_secondary", leaveMenu)
 
-    -- [X] supprimer l'ami survole (avec confirmation)
+    -- supprimer l'ami survole (avec confirmation) - bouton "Supprimer" en bas
     menuElement.bindButton:addEventHandler("button_alt1", function(element, eventArgs)
-        local name = menuElement.selectedFriend
+        local name = EasyMPSelectedFriend
         if not name then
             return
         end
@@ -305,20 +308,24 @@ local function postLoadFunction(menuElement, controllerIndex, controller)
                 menuElement.easyMPSignature = ""
             end,
         }
-        pcall(function()
+        local ok = pcall(function()
             LUI.FlowManager.RequestPopupMenu(nil, "EasyMPConfirmPopup", true, eventArgs.controller, false)
         end)
+        if not ok then
+            friendslist.remove(name)
+            menuElement.easyMPSignature = ""
+        end
     end)
 
-    -- [Y] renommer l'ami survole (clavier a l'ecran)
+    -- renommer l'ami survole (clavier a l'ecran) - bouton "Renommer" en bas
     menuElement.bindButton:addEventHandler("button_alt2", function(element, eventArgs)
-        local name = menuElement.selectedFriend
+        local name = EasyMPSelectedFriend
         if not name then
             return
         end
-        local ctrl = eventArgs.controller or controllerIndex
+        local ctrl = (eventArgs and eventArgs.controller) or controllerIndex
         pcall(function()
-            OSK.OpenScreenKeyboard(ctrl, Engine.Localize("Nouveau nom pour " .. name), name, 22, true, false, false,
+            OSK.OpenScreenKeyboard(ctrl, "Nouveau nom", name, 22, true, false, false,
                 function(kbController, newName)
                     if newName and newName ~= "" then
                         friendslist.rename(name, newName)
