@@ -88,16 +88,54 @@ function EasyMPFriendButton(menu, controller)
     Text:SetOutlineRGBFromInt(0, 0)
     Text:SetAnchorsAndPosition(0, 0, 0.5, 0.5, _1080p * 44, _1080p * -41, _1080p * -11, _1080p * 11)
 
+    EasyMPFriendButton:addElement(Text)
+    EasyMPFriendButton.Text = Text
+
+    -- colored status square (tintable "white" material), shown for friend rows
+    local StatusDot = nil
+    pcall(function()
+        StatusDot = LUI.UIImage.new()
+        StatusDot.id = "StatusDot"
+        StatusDot:setImage(RegisterMaterial("white"), 0)
+        StatusDot:SetAlpha(0, 0)
+        StatusDot:SetAnchorsAndPosition(0, 0, 0.5, 0.5, _1080p * 16, _1080p * 32, _1080p * -8, _1080p * 8)
+        EasyMPFriendButton:addElement(StatusDot)
+        EasyMPFriendButton.StatusDot = StatusDot
+    end)
+
     Text:SubscribeToModelThroughElement(EasyMPFriendButton, "buttonLabel", function()
         local dataSource = EasyMPFriendButton:GetDataSource()
         local buttonLabel = dataSource.buttonLabel:GetValue(controllerIndex)
-        if buttonLabel ~= nil then
-            Text:setText(LocalizeString(buttonLabel), 0)
+        if buttonLabel == nil then
+            return
+        end
+
+        local display = buttonLabel
+        local color = nil
+        if string.find(buttonLabel, "%[EN PARTIE%]") then
+            color = 0x3AC36B       -- green
+            display = string.gsub(buttonLabel, "%[EN PARTIE%] ", "")
+        elseif string.find(buttonLabel, "%[EN LIGNE%]") then
+            color = 0xE6C341       -- amber
+            display = string.gsub(buttonLabel, "%[EN LIGNE%] ", "")
+        elseif string.find(buttonLabel, "%[HORS LIGNE%]") then
+            color = 0xA05052       -- muted red
+            display = string.gsub(buttonLabel, "%[HORS LIGNE%] ", "")
+        end
+
+        Text:setText(LocalizeString(display), 0)
+
+        if StatusDot then
+            pcall(function()
+                if color then
+                    StatusDot:SetRGBFromInt(color, 0)
+                    StatusDot:SetAlpha(1, 0)
+                else
+                    StatusDot:SetAlpha(0, 0)
+                end
+            end)
         end
     end)
-
-    EasyMPFriendButton:addElement(Text)
-    EasyMPFriendButton.Text = Text
 
     EasyMPFriendButton._animationSets.DefaultAnimationSet = function()
         EasyMPFriendButton._sequences.DefaultSequence = function()
