@@ -82,12 +82,17 @@ function EasyMPConfirmPopup(menu, controller)
 end
 MenuBuilder.registerType("EasyMPConfirmPopup", EasyMPConfirmPopup)
 
+-- set to true the instant a join starts, so the menu refresh loop stops touching
+-- UI elements that are about to be destroyed by the map load (avoids a LUI crash)
+EasyMPJoining = false
+
 -- ask "Rejoindre X ?" before actually connecting
 local function confirmJoin(controller, friendName, joinCommand)
     EasyMPConfirmData = {
         message = "Rejoindre " .. friendName .. " ?",
         title = "JOUER ENTRE AMIS",
         action = function()
+            EasyMPJoining = true
             Engine.Exec(joinCommand)
         end,
     }
@@ -96,6 +101,7 @@ local function confirmJoin(controller, friendName, joinCommand)
         LUI.FlowManager.RequestPopupMenu(nil, "EasyMPConfirmPopup", true, controller, false)
     end)
     if not ok then
+        EasyMPJoining = true
         Engine.Exec(joinCommand)
     end
 end
@@ -340,26 +346,26 @@ local function postLoadFunction(menuElement, controllerIndex, controller)
     populateList(menuElement, controllerIndex)
     updateMyCode(menuElement)
 
-    -- refresh friend statuses while the menu is open;
-    -- only rebuild the list when something actually changed to keep focus stable
+    -- refresh friend statuses a BOUNDED number of times after opening (no endless
+    -- loop): this avoids a scheduled callback firing during the join/map-load
+    -- teardown and crashing the LUI VM on destroyed elements.
     menuElement.easyMPAlive = true
+    EasyMPJoining = false
     local stopPolling = function()
         menuElement.easyMPAlive = false
     end
     menuElement:addEventHandler("menu_close", stopPolling)
     menuElement:addEventHandler("menu_lose_focus", stopPolling)
 
+    local pollsLeft = 6
     local pollFunction
     pollFunction = function()
-        -- Stop the moment we leave this menu. Joining a game tears down the whole
-        -- frontend without always firing menu_close, so also bail out if we are no
-        -- longer in the frontend: touching destroyed UI elements crashes the LUI VM.
-        if not menuElement.easyMPAlive or not Engine.InFrontend() then
-            menuElement.easyMPAlive = false
+        -- bail out completely if we left the menu, left the frontend, or a join
+        -- has started (the menu is about to be destroyed)
+        if not menuElement.easyMPAlive or EasyMPJoining or not Engine.InFrontend() then
             return
         end
 
-        -- guard every UI access; if the element was freed under us, stop quietly
         local ok = pcall(function()
             friendslist.refresh()
             updateMyCode(menuElement)
@@ -370,12 +376,10 @@ local function postLoadFunction(menuElement, controllerIndex, controller)
             end
         end)
 
-        if not ok or not menuElement.easyMPAlive then
-            menuElement.easyMPAlive = false
-            return
+        pollsLeft = pollsLeft - 1
+        if ok and menuElement.easyMPAlive and not EasyMPJoining and pollsLeft > 0 then
+            scheduler.once(pollFunction, 3000)
         end
-
-        scheduler.once(pollFunction, 3000)
     end
     scheduler.once(pollFunction, 3000)
 
